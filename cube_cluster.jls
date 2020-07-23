@@ -1,0 +1,108 @@
+// cube_cluster.jls
+// Stefan Sterk
+// 6-7-2020
+// Clustering lines by there Rho and Phi value by using Euclidean Distance
+// Returns a list with assigned cluster label
+//////////////////////////////////////////////////////////////////////////
+
+$$lines = %p1
+VarToArray &$$lines &$$Lines
+$$size = GetSizeArray &$$Lines
+
+SetSizeArray &$$Cluster 0
+SetSizeArray &$$Mirrored 0
+for $$i = 0 to $$size - 1 do
+ $$Cluster[$$i] = 0
+endfor
+
+
+$$currentCluster = 1
+for $$i = 0 to $$size - 1 do
+ $$i_line = $$Lines[$$i]
+ $$i_Rho = getnthfromvector 1 $$i_line
+ $$i_Phi = getnthfromvector 2 $$i_line
+ $$bestMinimum = Pow 10 10
+ for $$j = 0 to $$size - 1 do
+	if $$i == $$j then
+	 // Continue if same index
+	else
+	 if (($$Cluster[$$i] == $$Cluster[$$j]) and ($$Cluster[$$i] !== 0)) then
+		// Skip if line is are already asinged
+	 else
+		$$j_line = $$Lines[$$j]
+		$$j_Rho = getnthfromvector 1 $$j_line
+		$$j_Phi = getnthfromvector 2 $$j_line
+
+		$$distRho = ($$j_Rho - $$i_Rho) / 7
+		$$distRho = Pow $$distRho 2
+		$$distPhi = ($$j_Phi - $$i_Phi) * 4
+		$$distPhi = Pow $$distPhi 2
+		$$distance = $$distRho + $$distPhi
+
+		if $$distance != 0 then
+		 $$distance = Sqrt $$distance
+		endif
+
+		if $$distance < $$bestMinimum then
+		 $$bestMinimum = $$distance
+		 $$bestAlly = $$j
+		endif
+
+	 endif
+	endif
+ endfor
+
+ if $$bestMinimum < 300 then
+	if $$Cluster[$$i] == 0 then
+	 $$Cluster[$$i] = $$currentCluster
+	endif
+	$$Cluster[$$bestAlly] = $$currentCluster
+ else
+	if $$Cluster[$$i] != 0 then
+	 $$currentCluster = $$currentCluster + 1
+	else
+	 $$Cluster[$$i] = -0
+	endif
+ endif
+
+endfor
+
+////////////////////////////////////////////////////////////////////////
+// Put mirrored lines that are parallel to eachtother in same cluster //
+for $$i = 0 to $$size - 1 do
+ $$i_line = $$Lines[$$i]
+ $$i_Phi = getnthfromvector 2 $$i_line
+ $$i_Phi = (3.14 + 1.57)* $$i_Phi  / 2000 - 1.57
+ if $$i_Phi < 0:
+
+	$$j = $$Cluster[$$i]
+	for $$k = 0 to $$size - 1 do
+
+	 if $$i == $$k then
+		 //continue
+	 else
+		$$l = $$Cluster[$$k]
+
+		if $$j == $$l then
+		 //continue
+		else
+		 $$k_Phi = $$Lines[$$k]
+		 $$k_Phi = getnthfromvector 2 $$k_Phi
+		 $$k_Phi = (3.14 + 1.57)* $$k_Phi  / 2000 - 1.57
+		 $$distance = $$k_Phi - $$i_Phi - 3.14
+		 $$distance = Fabs $$distance
+
+		 if $$distance < 0.1 then
+			$$Cluster[$$i] = -1 * $$l
+		 endif
+
+		endif
+	 endif
+	endfor
+ endif
+endfor
+
+//////////////////////////////////////////////
+// Returning a list with cluster label data //
+ArrayToVar &$$Cluster &$$cluster
+return $$cluster

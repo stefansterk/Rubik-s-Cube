@@ -1,0 +1,76 @@
+// cube_lines.jls
+// Stefan Sterk
+// 14-7-2020
+// Find and return best lines
+//////////////////////////////////////////////////////
+
+Copy %p1 hough
+
+//////////////////////
+// Fixed parameters //
+$$minR = 0
+$$maxR = 2000
+$$resR = 2000
+$$deltaR = ($$maxR - $$minR) / $$resR
+$$minPhi = -1.57
+$$maxPhi = 3.14
+$$resPhi = 2000
+$$deltaPhi = ($$maxPhi - $$minPhi) / $$resPhi
+
+/////////////////////////////////
+// Hough transformation (line) //
+HoughLineT hough hough $$minR $$maxR $$deltaR $$minPhi $$maxPhi $$deltaPhi
+//Copy hough drawdots
+
+/////////////////////////////
+// Making the peaks higher //
+NrOfNeighbours hough peaks EightConnected
+ContrastStretch peaks 0 255
+
+////////////////////////////////////////////
+// Filter out lower peaks close to others //
+SetSizeArray &$$DimLMF 2500
+InitArray &$$DimLMF 1
+ArrayToVar &$$DimLMF &$$dimLMF
+LocalMaxFilter peaks peaks 0 EdgeExtend 50 50 24 24 $$dimLMF 
+
+////////////////////////////////////
+// Threshold peaks and label them //
+Threshold peaks 35 255
+LabelBlobs peaks EightConnected
+
+///////////////////////////////////////////////
+// Building a list of lines that where found //
+$$maxBlob = BlobAnalysisArray peaks &$$tab NoSort CentreOfGravity UseY CentreOfGravity
+SetSizeArray &$$Lines 0
+for $$i = 0 to $$maxBlob do
+ VarToArray &$$tab[$$i] &$$elm
+ $$nrBlob = $$elm[0]
+ $$CoG = $$elm[1]
+ $$x = getnthfromvector 1 $$CoG
+ $$x = Round $$x
+ $$y = getnthfromvector 2 $$CoG
+ $$y = Round $$y
+
+ ////////////////////////////////////////////////////////
+ // Converting x y corordination to Rho and Phi values //
+ //$$Rho = ($$maxR - $$minR)* $$x  / $$resR + $$minR
+ //$$Phi = ($$maxPhi - $$minPhi)* $$y  / $$resPhi + $$minPhi
+ //DiskShape drawdots $$x $$y 5 1000 KeepOriginal
+
+ //$$line = vector $$Rho $$Phi
+ //lcall cube_draw_line.jls img img $$line
+
+ $$line = vector $$x $$y
+ lcall cube_draw_line.jls drawImg drawImg $$line (255,0,255) false
+ $$Lines[$$i] = $$line
+endfor
+
+//display peaks
+//display hough
+//display drawdots
+
+//////////////////////////////////////////////////
+// Returning the list of lines that where found //
+ArrayToVar &$$Lines &$$lines
+return $$lines

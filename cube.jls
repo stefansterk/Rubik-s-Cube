@@ -1,0 +1,57 @@
+// cube_main.jls
+// Stefan Sterk
+// 27-6-2020
+//////////////////////////////////////////////////////
+
+//Collect files
+lFileNamesInDir images\*.jpg &$files
+$n = GetSizeArray &$files
+
+//Loop through files
+for $$i = 0 to $n - 1 do 
+//for $$i = 0 to 0 do
+ $file = $files[$$i]
+ $fp = images\ . $file
+ 
+ lcall cube_canny.jls $fp img
+ //lcall cube_canny.jls images\DSCN5649.JPG img
+ display orgImg
+ display img
+ Copy orgImg drawImg
+
+ $lines = lcall cube_lines.jls img
+ 
+ $clusters = lcall cube_cluster.jls $lines
+
+ $corners = lcall cube_corners.jls $lines $clusters
+ 
+ if $corners !== false then
+  VarToArray &$corners &$Corners
+  Warp orgImg Face1 ForwardT $Corners[0] $Corners[1] $Corners[5] $Corners[6] 800 800 0 NearestPixelInterpolation
+  Warp orgImg Face2 ForwardT $Corners[1] $Corners[2] $Corners[6] $Corners[3] 800 800 0 NearestPixelInterpolation
+  Warp orgImg Face3 ForwardT $Corners[6] $Corners[3] $Corners[5] $Corners[4] 800 800 0 NearestPixelInterpolation
+  
+  //Warp orgImg Face1 ForwardT $Corners[0] $Corners[6] $Corners[5] $Corners[4] 800 800 0 NearestPixelInterpolation
+  //Warp orgImg Face2 ForwardT $Corners[0] $Corners[1] $Corners[6] $Corners[2] 800 800 0 NearestPixelInterpolation
+  //Warp orgImg Face3 ForwardT $Corners[6] $Corners[2] $Corners[4] $Corners[3] 800 800 0 NearestPixelInterpolation
+  
+  display Face1
+  display Face2
+  display Face3
+ endif
+ 
+ TextOnImage drawImg 10  10 courier14 lijnen
+ TextOnImage drawImg 100 10 courier14 $lines
+ TextOnImage drawImg 10  34 courier14 labels
+ TextOnImage drawImg 100 34 courier14 $clusters
+ TextOnImage drawImg 10  58 courier14 hoeken
+ TextOnImage drawImg 100 58 courier14 $corners
+ 
+ $fp = images\result\ . $file
+ lWrite_PNG drawImg $fp
+ display drawImg
+ break
+endfor
+
+
+

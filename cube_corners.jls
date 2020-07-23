@@ -1,0 +1,282 @@
+// cube_cornes.jls
+// Stefan Sterk
+// 27-6-2020
+/////////////////////////////////////////////////////////
+
+$$lines = %p1
+$$clusters = %p2
+
+VarToArray &$$clusters &$$Clusters
+$$size = GetSizeArray &$$Clusters
+
+/////////////////////////////////////////////////////////
+// Split up cluster data in to seperate lists ///////////
+SetSizeArray &$$indCluster 0
+SetSizeArray &$$groupCluster 0
+SetSizeArray &$$done $$size
+InitArray &$$done 0
+$$numCluster = 0
+for $$i = 0 to $$size - 1 do
+ $$i_c = $$Clusters[$$i]
+ $$i_c_abs = Fabs $$i_c
+ 
+ if ($$i_c_abs != 0) and ($$done[$$i] != 1) then
+  $$count = 0
+  $$indCluster[$$count] = $$i
+  
+  for $$j = 0 to $$size - 1 do
+   if ($$j != $$i) and ($$done[$$j] == 0) then
+    $$j_c = $$Clusters[$$j]
+    $$j_c_abs = Fabs $$j_c
+    if $$j_c_abs == $$i_c_abs then
+     $$done[$$j] = 1
+ 
+     $$count = $$count + 1
+     $$indCluster[$$count] = $$j
+    endif
+   endif
+  endfor
+  
+  ArrayToVar &$$indCluster &$$indClst
+  SetSizeArray &$$indCluster 0
+  $$vect = Vector $$indClst
+  $$count = $$count + 1
+  if $$count >= 7 then
+   &$$groupCluster[$$numCluster] = $$count $$vect
+   $$numCluster = $$numCluster + 1
+  endif
+ endif
+ $$done[$$i] = 1
+endfor
+
+/////////////////////////////////////////////////////////
+// Collect the outerlines of the cube ///////////////////
+SetSizeArray &$$outerLines 0
+$$numgrp = GetSizeArray &$$groupCluster
+for $$i = 0 to $$numgrp - 1 do
+ $$minRho = 2000
+ $$maxRho = -2000
+ $$d = $$groupCluster[$$i]
+ $$nrLines = GetNthWord 1 $$d 
+ $$indexes = GetNthWord 2 $$d
+ $$mirored = 0
+ for $$j = 1 to $$nrLines do
+  $$index = GetNthFromVector $$j $$indexes
+  $$index = $$index + 1
+  $$label = GetNthWord $$index $$clusters
+  $$line  = GetNthWord $$index $$lines
+  $$Rho = GetNthFromVector 1 $$line 
+  if $$label < 0 then
+   $$Rho = $$Rho * -1
+   $$mirored = 1
+  endif
+  if $$Rho < $$minRho then
+   $$minRho = $$Rho
+   $$minIndex = $$index
+  endif
+  if $$Rho > $$maxRho then
+   $$maxRho = $$Rho
+   $$maxIndex = $$index
+  endif
+ endfor
+ if $$mirored == 0 then
+  $$minmaxIndex = Vector $$minIndex $$maxIndex
+ else
+  $$minmaxIndex = Vector $$maxIndex $$minIndex
+ endif
+ $$outerLines[$$i] = $$minmaxIndex
+endfor
+
+/////////////////////////////////////////////////////////
+// Exit there where foun les or more then three groups //
+if $$numgrp < 3 then
+ return false $$numgrp
+endif
+
+/////////////////////////////////////////////////////////
+// sort and convert outlines ////////////////////////////
+$$values = (255,0,0) (0,255,0) (0,0,255)
+$$count = 0
+SetSizeArray &$$list 0
+for $$i = 1 to 2 do
+ for $$j = 0 to $$numgrp - 1 do
+  $$index = $$outerLines[$$j]
+  $$index = GetNthFromVector $$i $$index
+  $$line = GetNthWord $$index $$lines
+  
+  $$Rho = getnthfromvector 1 $$line
+  $$Phi = getnthfromvector 2 $$line
+  $$Phi = 4.71 * $$Phi  / 2000 - 1.57
+    
+  $$line = vector $$Rho $$Phi
+  $$value = $$j + 1
+  $$value = GetNthWord $$value $$values
+  lcall cube_draw_line.jls drawImg drawImg $$line $$value true
+  
+  $$list[$$count] = $$line
+  $$count = $$count + 1
+ endfor
+endfor
+
+/////////////////////////////////////////////////////////
+// determine outercorners ///////////////////////////////
+SetSizeArray &$$Corners 0
+$$looporder = (0,1) (1,2) (2,3) (3,4) (4,5) (5,0)
+for $$i = 1 to 6 do
+ $$indexes = GetNthWord $$i $$looporder
+ 
+ $$line_1 = GetNthFromVector 1 $$indexes
+ $$line_1 = $$list[$$line_1]
+ $$Rho_1 = GetNthFromVector 1 $$line_1
+ $$Phi_1 = GetNthFromVector 2 $$line_1
+ $$a1 = Cos $$Phi_1
+ $$b1 = Sin $$Phi_1
+ $$c1 = $$Rho_1
+ 
+ $$line_2 = GetNthFromVector 2 $$indexes
+ $$line_2 = $$list[$$line_2]
+ $$Rho_2 = GetNthFromVector 1 $$line_2
+ $$Phi_2 = GetNthFromVector 2 $$line_2
+ $$a2 = Cos $$Phi_2
+ $$b2 = Sin $$Phi_2
+ $$c2 = $$Rho_2
+ 
+ $$D = $$a1 * $$b2 - $$b1 * $$a2
+ $$corner = 0
+ if $$D != 0 then
+  $$x = ($$c1 * $$b2 - $$b1 * $$c2) / $$D
+  $$x = Round $$x
+  $$y = ($$a1 * $$c2 - $$c1 * $$a2) / $$D
+  $$y = Round $$y
+  $$corner = Vector $$x $$y
+  DiskShape drawImg $$x $$y 5 (255,0,255) KeepOriginal
+  TextOnImage drawImg $$x $$y courier22 $$i
+  
+ endif
+ 
+ $$c = $$i - 1
+ $$Corners[$$c] = $$corner
+ 
+endfor
+
+
+/////////////////////////////////////////////////////////
+// determine innercorner ////////////////////////////////
+$$looporder = (1,4) (5,2) (3,0) 
+SetSizeArray &$$innerLines 0
+//$$sumBest = 0
+for $$L = 1 to 1 do
+ for $$i = 0 to 2 do
+  $$grp = $$groupCluster[$$i]
+  $$nrLines = GetNthWord 1 $$grp
+  $$indexes = GetNthWord 2 $$grp
+ 
+  $$c = $$i + 1
+  $$c = GetNthWord $$c $$looporder
+  $$c = GetNthFromVector $$L $$c
+  $$corner = $$Corners[$$c]
+  $$x = GetNthFromVector 1 $$corner
+  $$y = GetNthFromVector 2 $$corner
+  //DiskShape drawImg2 $$x $$y 5 (255,0,255) KeepOriginal
+ 
+  $$bestMinimum = Pow 10 10
+  for $$j = 1 to $$nrLines do
+   $$index = GetNthFromVector $$j $$indexes
+   $$index = $$index + 1
+
+   $$line  = GetNthWord $$index $$lines
+   $$Rho = GetNthFromVector 1 $$line 
+   $$Phi = GetNthFromVector 2 $$line
+   $$Phi = 4.71 * $$Phi  / 2000 - 1.57
+   $$line = Vector $$Rho $$Phi
+   $$a = Cos $$Phi
+   $$b = Sin $$Phi
+  
+   $$m = -1 * $$a / $$b
+   $$k = $$Rho / $$b
+   $$dist = $$k + $$m * $$x - $$y
+   $$dist = Fabs $$dist
+   $$sqrt = 1 + $$m * $$m
+   $$sqrt = Sqrt $$sqrt
+   $$dist = $$dist / $$sqrt
+  
+   if $$dist < $$bestMinimum then
+    $$bestLine = $$line
+    $$bestMinimum = $$dist
+   endif
+  
+   //lcall cube_draw_line.jls orgImg drawImg2 $$line (255,0,0) true
+   //DiskShape drawImg2 $$x $$y 5 (255,0,255) KeepOriginal
+   //TextOnImage drawImg2 20 20 courier14 $$dist
+  endfor
+  
+  //$$sumBest = $$sumBest + $$bestMinimum
+  $$innerLines[$$i] = $$bestLine
+  //lcall cube_draw_line.jls drawImg drawImg $$bestLine (255,0,0) true
+ endfor
+
+ //if $$L == 1 then
+ // $$LbestMinimum = $$sumBest
+ // $$sumBest = 0
+ // $$bestInnerLines = $$innerLines[$$i]
+ //endif
+endfor
+
+/////////////////////////////////////////////////////////
+// select best innerlines ///////////////////////////////
+//if $$sumBest > $$LbestMinimum then
+// $$innerLines = $$bestInnerLines
+// //$$L = 1
+//endif
+
+/////////////////////////////////////////////////////////
+// determine avarage point of intersectedpoints /////////
+$$xMean = 0
+$$yMean = 0
+$$count = 0
+$$looporder = (0,1) (1,2) (2,0)
+for $$i = 1 to 3 do
+ $$indexes = GetNthWord $$i $$looporder
+ 
+ $$line_1 = GetNthFromVector 1 $$indexes
+ $$line_1 = $$innerLines[$$line_1]
+ $$Rho_1 = GetNthFromVector 1 $$line_1
+ $$Phi_1 = GetNthFromVector 2 $$line_1
+ $$a1 = Cos $$Phi_1
+ $$b1 = Sin $$Phi_1
+ $$c1 = $$Rho_1
+ 
+ $$line_2 = GetNthFromVector 2 $$indexes
+ $$line_2 = $$innerLines[$$line_2]
+ $$Rho_2 = GetNthFromVector 1 $$line_2
+ $$Phi_2 = GetNthFromVector 2 $$line_2
+ $$a2 = Cos $$Phi_2
+ $$b2 = Sin $$Phi_2
+ $$c2 = $$Rho_2
+
+ 
+ $$D = $$a1 * $$b2 - $$b1 * $$a2
+ $$corner = 0
+ if $$D != 0 then
+  $$x = ($$c1 * $$b2 - $$b1 * $$c2) / $$D 
+  $$xMean = $$xMean + $$x
+  $$y = ($$a1 * $$c2 - $$c1 * $$a2) / $$D 
+  $$yMean = $$yMean + $$y
+  $$count = $$count + 1
+ endif
+ 
+endfor
+$$xMean = $$xMean / $$count
+$$xMean = Round $$xMean
+$$yMean = $$yMean / $$count
+$$yMean = Round $$yMean
+$$corner = Vector $$xMean $$yMean
+$$Corners[6] = $$corner
+if ($$xMean >= 0) and ($$xMean < 1200) then
+ if ($$yMean >= 0) and ($$yMean < 1600) then
+  DiskShape drawImg $$xMean $$yMean 5 (255,50,255) KeepOriginal
+  TextOnImage drawImg $$xMean $$yMean courier22 7
+ endif
+endif
+ArrayToVar &$$Corners &$$corners
+return $$corners

@@ -1,0 +1,64 @@
+// cube_draw_line.jls
+// Stefan Sterk
+// 27-6-2020
+// Used to draw a line by given Rho and Phi by Hough Line
+
+$$w = GetWidth %p1
+$$h = GetHeight %p1
+Copy %p1 %p2
+
+$$lines = %p3
+VarToArray &$$lines &$$lines
+$size = GetSizeArray &$$lines
+
+for $$i = 1 to $size do
+ $$v1 = GetNthWord $$i %p3
+ $$Rho = GetNthFromVector 1 $$v1
+ $$Phi = GetNthFromVector 2 $$v1
+ if %p5 !== true then
+  $$Phi = 4.71 * $$Phi  / 2000 - 1.57
+ endif
+ $$a = Cos $$Phi
+ $$b = Sin $$Phi
+ $$x0 = $$a * $$Rho
+ $$y0 = $$b * $$Rho
+
+ // Determine START point
+ $$y1 = 0
+ $$x1 = $$x0 - (($$y1 - $$y0) / $$a) * $$b
+
+ if $$x1 < 0 then
+  $$x1 = 0
+  $$y1 = $$y0 + (($$x0 - $$x1) / $$b) * $$a
+ endif
+
+ if $$x1 >= $$w then
+  $$x1 = $$w - 1
+  $$y1 = $$y0 + (($$x0 - $$x1) / $$b) * $$a
+ endif
+ 
+ $$x1 = FloatToInt $$x1
+ $$y1 = FloatToInt $$y1
+ 
+ // Determine END point
+ $$y2 = $$h - 1
+ $$x2 = $$x0 - (($$y2 - $$y0) / $$a) * $$b
+
+ if $$x2 < 0 then
+  $$x2 = 0
+  $$y2 = $$y0 + (($$x0 - $$x2) / $$b) * $$a
+ endif
+
+ if $$x2 >= $$w then
+  $$x2 = $$w - 1
+  $$y2 = $$y0 + (($$x0 - $$x2) / $$b) * $$a
+ endif
+ 
+ $$x2 = FloatToInt $$x2
+ $$y2 = FloatToInt $$y2
+
+ // Formating START and END point 
+ $$p1 = vector $$x1 $$y1
+ $$p2 = vector $$x2 $$y2
+ DrawLine %p2 $$p1 $$p2 %p4 KeepOriginal
+endfor
